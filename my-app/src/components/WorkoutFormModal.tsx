@@ -4,7 +4,6 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { ExercisePickerModal } from './ExercisePickerModal';
 import {
   getExerciseLabel,
-  resolveExerciseId,
   splitExerciseCsv,
 } from '../data/exerciseCatalog';
 import type { TranslationDictionary } from '../i18n/translations';
@@ -47,7 +46,7 @@ export function WorkoutFormModal({
   const selectedExerciseIds = useMemo(
     () =>
       selectedExerciseValues
-        .map((value) => resolveExerciseId(value))
+        .map((value) => value.trim())
         .filter((value): value is string => Boolean(value)),
     [selectedExerciseValues]
   );
