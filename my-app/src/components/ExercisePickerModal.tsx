@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { EXERCISE_CATALOG } from '../data/exerciseCatalog';
+import type { RemoteMuscleGroup } from '../domain/models/exercise';
 import type { TranslationDictionary } from '../i18n/translations';
 import type { ThemeColors } from '../theme/palette';
 import type { Language } from '../types/app';
@@ -11,6 +11,9 @@ type ExercisePickerModalProps = {
   colors: ThemeColors;
   t: TranslationDictionary;
   language: Language;
+  muscleGroups: RemoteMuscleGroup[];
+  isLoading: boolean;
+  hasError: boolean;
   selectedExerciseIds: string[];
   onApply: (exerciseIds: string[]) => void;
   onClose: () => void;
@@ -21,11 +24,14 @@ export function ExercisePickerModal({
   colors,
   t,
   language,
+  muscleGroups,
+  isLoading,
+  hasError,
   selectedExerciseIds,
   onApply,
   onClose,
 }: ExercisePickerModalProps) {
-  const initialGroupId = EXERCISE_CATALOG[0]?.id ?? '';
+  const initialGroupId = muscleGroups[0]?.id ?? '';
   const [selectedGroupId, setSelectedGroupId] = useState(initialGroupId);
   const [selectedMap, setSelectedMap] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
@@ -34,6 +40,19 @@ export function ExercisePickerModal({
     }
     return initial;
   });
+  const visibleGroups = useMemo(
+    () => muscleGroups.filter((group) => group.label[language]?.trim().length > 0),
+    [language, muscleGroups]
+  );
+  const currentGroup = useMemo(
+    () => muscleGroups.find((group) => group.id === selectedGroupId) ?? muscleGroups[0],
+    [muscleGroups, selectedGroupId]
+  );
+  const visibleExercises = useMemo(
+    () =>
+      (currentGroup?.exercises ?? []).filter((exercise) => exercise.label[language]?.trim().length > 0),
+    [currentGroup, language]
+  );
 
   useEffect(() => {
     if (!visible) {
@@ -46,10 +65,15 @@ export function ExercisePickerModal({
     setSelectedMap(nextMap);
   }, [selectedExerciseIds, visible]);
 
-  const currentGroup = useMemo(
-    () => EXERCISE_CATALOG.find((group) => group.id === selectedGroupId) ?? EXERCISE_CATALOG[0],
-    [selectedGroupId]
-  );
+  useEffect(() => {
+    if (!selectedGroupId && visibleGroups[0]?.id) {
+      setSelectedGroupId(visibleGroups[0].id);
+      return;
+    }
+    if (selectedGroupId && !visibleGroups.some((group) => group.id === selectedGroupId)) {
+      setSelectedGroupId(visibleGroups[0]?.id ?? '');
+    }
+  }, [visibleGroups, selectedGroupId]);
 
   const selectedCount = Object.values(selectedMap).filter(Boolean).length;
 
@@ -192,7 +216,7 @@ export function ExercisePickerModal({
             style={styles.groupsScroll}
             contentContainerStyle={styles.groupsRow}
           >
-            {EXERCISE_CATALOG.map((group) => {
+            {visibleGroups.map((group) => {
               const isActive = group.id === selectedGroupId;
               return (
                 <Pressable
@@ -209,7 +233,12 @@ export function ExercisePickerModal({
           </ScrollView>
 
           <ScrollView style={styles.exercisesScroll}>
-            {currentGroup?.exercises.map((exercise) => {
+            {isLoading && <Text style={styles.subtitle}>{t.catalogLoading}</Text>}
+            {hasError && <Text style={styles.subtitle}>{t.catalogUnavailable}</Text>}
+            {!isLoading && !hasError && visibleExercises.length === 0 && (
+              <Text style={styles.subtitle}>{t.noExercises}</Text>
+            )}
+            {visibleExercises.map((exercise) => {
               const isSelected = !!selectedMap[exercise.id];
               return (
                 <Pressable

@@ -35,6 +35,12 @@ export const translations = {
     lightTheme: 'Светлая тема',
     greeting: 'Привет',
     back: 'Назад',
+    quoteLoading: 'Загрузка цитаты...',
+    quoteUnavailable: 'Цитата недоступна',
+    onlineStatus: 'Онлайн',
+    offlineStatus: 'Оффлайн',
+    catalogLoading: 'Загрузка упражнений...',
+    catalogUnavailable: 'Каталог упражнений недоступен',
   },
   en: {
     splashTitle: 'Giga Tracker',
@@ -70,6 +76,12 @@ export const translations = {
     lightTheme: 'Light theme',
     greeting: 'Hi',
     back: 'Back',
+    quoteLoading: 'Loading quote...',
+    quoteUnavailable: 'Quote is unavailable',
+    onlineStatus: 'Online',
+    offlineStatus: 'Offline',
+    catalogLoading: 'Loading exercises...',
+    catalogUnavailable: 'Exercise catalog is unavailable',
   },
 } as const;
 
