@@ -2,10 +2,7 @@ import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ExercisePickerModal } from './ExercisePickerModal';
-import {
-  getExerciseLabel,
-  splitExerciseCsv,
-} from '../data/exerciseCatalog';
+import type { RemoteMuscleGroup } from '../domain/models/exercise';
 import type { TranslationDictionary } from '../i18n/translations';
 import type { ThemeColors } from '../theme/palette';
 import type { Language } from '../types/app';
@@ -17,6 +14,10 @@ type WorkoutFormModalProps = {
   colors: ThemeColors;
   t: TranslationDictionary;
   language: Language;
+  muscleGroups: RemoteMuscleGroup[];
+  catalogLoading: boolean;
+  catalogError: boolean;
+  selectedExercises: Array<{ id: string; label: string }>;
   isEditing: boolean;
   onChange: (next: WorkoutForm) => void;
   onSave: () => void;
@@ -29,26 +30,23 @@ export function WorkoutFormModal({
   colors,
   t,
   language,
+  muscleGroups,
+  catalogLoading,
+  catalogError,
+  selectedExercises,
   isEditing,
   onChange,
   onSave,
   onClose,
 }: WorkoutFormModalProps) {
   const [isExercisePickerVisible, setExercisePickerVisible] = useState(false);
-  const selectedExerciseValues = useMemo(
-    () => splitExerciseCsv(form.exercises_csv),
-    [form.exercises_csv]
-  );
-  const selectedExerciseLabels = useMemo(
-    () => selectedExerciseValues.map((value) => getExerciseLabel(value, language)),
-    [language, selectedExerciseValues]
-  );
   const selectedExerciseIds = useMemo(
     () =>
-      selectedExerciseValues
+      selectedExercises
+        .map((exercise) => exercise.id)
         .map((value) => value.trim())
         .filter((value): value is string => Boolean(value)),
-    [selectedExerciseValues]
+    [selectedExercises]
   );
 
   const styles = StyleSheet.create({
@@ -201,12 +199,12 @@ export function WorkoutFormModal({
             <View style={styles.selectedListBox}>
               <ScrollView showsVerticalScrollIndicator>
                 <View style={styles.selectedListContent}>
-                  {selectedExerciseLabels.length === 0 ? (
+                  {selectedExercises.length === 0 ? (
                     <Text style={styles.emptySelected}>{t.noSelectedExercises}</Text>
                   ) : (
-                    selectedExerciseLabels.map((name, idx) => (
-                      <Text key={`${name}-${idx}`} style={styles.selectedItem}>
-                        • {name}
+                    selectedExercises.map((exercise, idx) => (
+                      <Text key={`${exercise.id}-${idx}`} style={styles.selectedItem}>
+                        • {exercise.label}
                       </Text>
                     ))
                   )}
@@ -231,6 +229,9 @@ export function WorkoutFormModal({
         colors={colors}
         t={t}
         language={language}
+        muscleGroups={muscleGroups}
+        isLoading={catalogLoading}
+        hasError={catalogError}
         selectedExerciseIds={selectedExerciseIds}
         onApply={(exerciseIds) => {
           onChange({ ...form, exercises_csv: exerciseIds.join(', ') });

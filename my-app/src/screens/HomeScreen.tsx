@@ -11,6 +11,9 @@ type HomeScreenProps = {
   t: TranslationDictionary;
   language: Language;
   userName: string;
+  isOnline: boolean;
+  quote: { text: string; author: string } | null;
+  quoteError: boolean;
   bottomInset: number;
   workouts: Workout[];
   onOpenSettings: () => void;
@@ -25,6 +28,9 @@ export function HomeScreen({
   t,
   language,
   userName,
+  isOnline,
+  quote,
+  quoteError,
   bottomInset,
   workouts,
   onOpenSettings,
@@ -68,8 +74,40 @@ export function HomeScreen({
       lineHeight: 22,
       fontWeight: '700',
     },
+    rightControls: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    onlineIndicator: {
+      width: 12,
+      height: 12,
+      borderRadius: 6,
+      backgroundColor: isOnline ? '#22c55e' : '#ef4444',
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
     homeContent: {
       flex: 1,
+    },
+    quoteCard: {
+      marginHorizontal: 16,
+      marginBottom: 10,
+      padding: 12,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      gap: 6,
+    },
+    quoteText: {
+      color: colors.text,
+      fontSize: 14,
+      fontStyle: 'italic',
+    },
+    quoteMeta: {
+      color: colors.secondaryText,
+      fontSize: 12,
     },
     listArea: {
       flex: 1,
@@ -163,12 +201,26 @@ export function HomeScreen({
             {t.greeting}, {userName}
           </Text>
         </View>
-        <Pressable style={styles.iconButton} onPress={onOpenSettings}>
-          <Text style={styles.iconButtonText}>⚙</Text>
-        </Pressable>
+        <View style={styles.rightControls}>
+          <View style={styles.onlineIndicator} />
+          <Pressable style={styles.iconButton} onPress={onOpenSettings}>
+            <Text style={styles.iconButtonText}>⚙</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.homeContent}>
+        <View style={styles.quoteCard}>
+          {!quote && !quoteError && <Text style={styles.quoteMeta}>{t.quoteLoading}</Text>}
+          {quote && (
+            <>
+              <Text style={styles.quoteText}>"{quote.text}"</Text>
+              <Text style={styles.quoteMeta}>- {quote.author}</Text>
+            </>
+          )}
+          {quoteError && <Text style={styles.quoteMeta}>{t.quoteUnavailable}</Text>}
+        </View>
+
         <View style={styles.listArea}>
           {workouts.length === 0 ? (
             <View style={styles.centered}>

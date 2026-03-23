@@ -1,7 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { getExerciseLabel, splitExerciseCsv } from '../data/exerciseCatalog';
 import type { TranslationDictionary } from '../i18n/translations';
 import type { ThemeColors } from '../theme/palette';
 import type { Language } from '../types/app';
@@ -13,6 +12,7 @@ type DetailsScreenProps = {
   t: TranslationDictionary;
   language: Language;
   workout: Workout | null;
+  resolveExerciseLabel: (id: string) => string;
   onBack: () => void;
 };
 
@@ -21,6 +21,7 @@ export function DetailsScreen({
   t,
   language,
   workout,
+  resolveExerciseLabel,
   onBack,
 }: DetailsScreenProps) {
   const insets = useSafeAreaInsets();
@@ -102,7 +103,11 @@ export function DetailsScreen({
   });
 
   const exerciseLabels = workout
-    ? splitExerciseCsv(workout.exercises_csv).map((value) => getExerciseLabel(value, language))
+    ? workout.exercises_csv
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .map((value) => resolveExerciseLabel(value))
     : [];
 
   return (
