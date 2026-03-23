@@ -85,30 +85,6 @@ export function splitExerciseCsv(exercisesCsv: string): string[] {
     .filter(Boolean);
 }
 
-export function resolveExerciseId(value: string): string | null {
-  const normalized = value.trim();
-  if (!normalized) {
-    return null;
-  }
-
-  const byId = EXERCISE_LIST.find((exercise) => exercise.id === normalized);
-  if (byId) {
-    return byId.id;
-  }
-
-  const byLabel = EXERCISE_LIST.find(
-    (exercise) =>
-      exercise.label.ru.toLowerCase() === normalized.toLowerCase() ||
-      exercise.label.en.toLowerCase() === normalized.toLowerCase()
-  );
-
-  return byLabel?.id ?? null;
-}
-
 export function getExerciseLabel(value: string, language: Language): string {
-  const id = resolveExerciseId(value);
-  if (!id) {
-    return value;
-  }
-  return EXERCISE_LIST.find((exercise) => exercise.id === id)?.label[language] ?? value;
+  return EXERCISE_LIST.find((exercise) => exercise.id === value)?.label[language] ?? value;
 }

@@ -2,7 +2,7 @@ import type { Language } from '../types/app';
 
 export const translations = {
   ru: {
-    splashTitle: 'Lyfta Helper',
+    splashTitle: 'Giga Tracker',
     splashSubtitle: 'Загрузка приложения...',
     appTitle: 'История тренировок',
     settings: 'Настройки',
@@ -37,7 +37,7 @@ export const translations = {
     back: 'Назад',
   },
   en: {
-    splashTitle: 'Lyfta Helper',
+    splashTitle: 'Giga Tracker',
     splashSubtitle: 'Loading app...',
     appTitle: 'Workout History',
     settings: 'Settings',

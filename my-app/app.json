@@ -1,33 +1,47 @@
 {
   "expo": {
-    "name": "my-app",
+    "name": "Giga Tracker",
     "slug": "my-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/giga-splash.png",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0A192F",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/giga-splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "ios": {
-      "supportsTablet": true
+      "backgroundColor": "#ffffff",
+      "dark": {
+        "image": "./assets/giga-splash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#0A192F"
+      }
     },
     "android": {
-      "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
+      "splash": {
+            "image": "./assets/giga-splash.png",
+            "resizeMode": "contain",
+            "backgroundColor": "#ffffff",
+            "dark": {
+              "image": "./assets/giga-splash.png",
+              "resizeMode": "contain",
+              "backgroundColor": "#0A192F"
+            }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0A192F",
+          "image": "./assets/giga-splash.png",
+          "imageWidth": 200
+        }
+      ]
     ]
   }
 }
