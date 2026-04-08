@@ -33,6 +33,7 @@ export function ExercisePickerModal({
 }: ExercisePickerModalProps) {
   const initialGroupId = muscleGroups[0]?.id ?? '';
   const [selectedGroupId, setSelectedGroupId] = useState(initialGroupId);
+  const [sortAscending, setSortAscending] = useState(true);
   const [selectedMap, setSelectedMap] = useState<Record<string, boolean>>(() => {
     const initial: Record<string, boolean> = {};
     for (const exerciseId of selectedExerciseIds) {
@@ -48,11 +49,16 @@ export function ExercisePickerModal({
     () => muscleGroups.find((group) => group.id === selectedGroupId) ?? muscleGroups[0],
     [muscleGroups, selectedGroupId]
   );
-  const visibleExercises = useMemo(
-    () =>
-      (currentGroup?.exercises ?? []).filter((exercise) => exercise.label[language]?.trim().length > 0),
-    [currentGroup, language]
-  );
+  const visibleExercises = useMemo(() => {
+    const base = (currentGroup?.exercises ?? []).filter((exercise) => exercise.label[language]?.trim().length > 0);
+    const locale = language === 'ru' ? 'ru' : 'en';
+    return [...base].sort((a, b) => {
+      const an = a.label[language]?.trim() ?? '';
+      const bn = b.label[language]?.trim() ?? '';
+      const cmp = an.localeCompare(bn, locale);
+      return sortAscending ? cmp : -cmp;
+    });
+  }, [currentGroup, language, sortAscending]);
 
   useEffect(() => {
     if (!visible) {
@@ -131,6 +137,37 @@ export function ExercisePickerModal({
       fontSize: 13,
       fontWeight: '600',
     },
+    actionsScroll: {
+      maxHeight: 48,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingVertical: 2,
+    },
+    sortChip: {
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: colors.background,
+    },
+    sortChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    sortChipLabel: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    sortChipLabelActive: {
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: '600',
+    },
     exercisesScroll: {
       maxHeight: 320,
     },
@@ -159,10 +196,6 @@ export function ExercisePickerModal({
       color: colors.primary,
       fontSize: 18,
       fontWeight: '700',
-    },
-    buttonRow: {
-      flexDirection: 'row',
-      gap: 8,
     },
     buttonPrimary: {
       backgroundColor: colors.primary,
@@ -253,14 +286,35 @@ export function ExercisePickerModal({
             })}
           </ScrollView>
 
-          <View style={styles.buttonRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.actionsScroll}
+            contentContainerStyle={styles.actionsRow}
+          >
             <Pressable style={styles.buttonPrimary} onPress={handleApply}>
               <Text style={styles.buttonPrimaryLabel}>{t.chooseExercises}</Text>
             </Pressable>
             <Pressable style={styles.buttonSecondary} onPress={onClose}>
               <Text style={styles.buttonSecondaryLabel}>{t.cancel}</Text>
             </Pressable>
-          </View>
+            <Pressable
+              style={[styles.sortChip, sortAscending && styles.sortChipActive]}
+              onPress={() => setSortAscending(true)}
+            >
+              <Text style={sortAscending ? styles.sortChipLabelActive : styles.sortChipLabel}>
+                {language === 'ru' ? 'А → Я' : 'A → Z'}
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[styles.sortChip, !sortAscending && styles.sortChipActive]}
+              onPress={() => setSortAscending(false)}
+            >
+              <Text style={!sortAscending ? styles.sortChipLabelActive : styles.sortChipLabel}>
+                {language === 'ru' ? 'Я → А' : 'Z → A'}
+              </Text>
+            </Pressable>
+          </ScrollView>
         </View>
       </View>
     </Modal>

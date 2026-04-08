@@ -41,6 +41,11 @@ export const translations = {
     offlineStatus: 'Оффлайн',
     catalogLoading: 'Загрузка упражнений...',
     catalogUnavailable: 'Каталог упражнений недоступен',
+    searchPlaceholder: 'Поиск...',
+    noSearchResults: 'Ничего не найдено',
+    sortNewestFirst: 'Сначала новые',
+    sortOldestFirst: 'Сначала старые',
+    sortByTitle: 'По названию',
   },
   en: {
     splashTitle: 'Giga Tracker',
@@ -82,6 +87,11 @@ export const translations = {
     offlineStatus: 'Offline',
     catalogLoading: 'Loading exercises...',
     catalogUnavailable: 'Exercise catalog is unavailable',
+    searchPlaceholder: 'Search...',
+    noSearchResults: 'No matches',
+    sortNewestFirst: 'Newest first',
+    sortOldestFirst: 'Oldest first',
+    sortByTitle: 'By title',
   },
 } as const;
 

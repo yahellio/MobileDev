@@ -1,10 +1,14 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { TranslationDictionary } from '../i18n/translations';
 import type { ThemeColors } from '../theme/palette';
 import type { Language } from '../types/app';
 import type { Workout } from '../types/workout';
 import { formatDate } from '../utils/date';
+import { fuzzyKeywordMatch } from '../utils/fuzzySearch';
+
+type SortMode = 'dateDesc' | 'dateAsc' | 'title';
 
 type HomeScreenProps = {
   colors: ThemeColors;
@@ -39,6 +43,26 @@ export function HomeScreen({
   onOpenDetails,
   onDelete,
 }: HomeScreenProps) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortMode, setSortMode] = useState<SortMode>('dateDesc');
+
+  const visibleWorkouts = useMemo(() => {
+    let list = workouts.filter((w) => {
+      const blob = `${w.title} ${w.description} ${formatDate(w.workout_date, language)} ${w.exercises_csv}`;
+      return fuzzyKeywordMatch(blob, searchQuery);
+    });
+    const locale = language === 'ru' ? 'ru' : 'en';
+    list = [...list].sort((a, b) => {
+      if (sortMode === 'title') {
+        return a.title.localeCompare(b.title, locale);
+      }
+      const ta = new Date(a.workout_date).getTime();
+      const tb = new Date(b.workout_date).getTime();
+      return sortMode === 'dateDesc' ? tb - ta : ta - tb;
+    });
+    return list;
+  }, [workouts, searchQuery, sortMode, language]);
+
   const styles = StyleSheet.create({
     header: {
       paddingHorizontal: 16,
@@ -108,6 +132,48 @@ export function HomeScreen({
     quoteMeta: {
       color: colors.secondaryText,
       fontSize: 12,
+    },
+    searchInput: {
+      marginHorizontal: 16,
+      marginBottom: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      color: colors.text,
+      backgroundColor: colors.card,
+    },
+    sortScroll: {
+      marginHorizontal: 16,
+      marginBottom: 10,
+      maxHeight: 44,
+    },
+    sortRow: {
+      gap: 8,
+      paddingBottom: 4,
+    },
+    sortChip: {
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: colors.card,
+    },
+    sortChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    sortChipLabel: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '600',
+    },
+    sortChipLabelActive: {
+      color: '#fff',
+      fontSize: 13,
+      fontWeight: '600',
     },
     listArea: {
       flex: 1,
@@ -221,14 +287,61 @@ export function HomeScreen({
           {quoteError && <Text style={styles.quoteMeta}>{t.quoteUnavailable}</Text>}
         </View>
 
+        {workouts.length > 0 && (
+          <>
+            <TextInput
+              style={styles.searchInput}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={t.searchPlaceholder}
+              placeholderTextColor={colors.secondaryText}
+            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.sortScroll}
+              contentContainerStyle={styles.sortRow}
+            >
+              <Pressable
+                style={[styles.sortChip, sortMode === 'dateDesc' && styles.sortChipActive]}
+                onPress={() => setSortMode('dateDesc')}
+              >
+                <Text style={sortMode === 'dateDesc' ? styles.sortChipLabelActive : styles.sortChipLabel}>
+                  {t.sortNewestFirst}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.sortChip, sortMode === 'dateAsc' && styles.sortChipActive]}
+                onPress={() => setSortMode('dateAsc')}
+              >
+                <Text style={sortMode === 'dateAsc' ? styles.sortChipLabelActive : styles.sortChipLabel}>
+                  {t.sortOldestFirst}
+                </Text>
+              </Pressable>
+              <Pressable
+                style={[styles.sortChip, sortMode === 'title' && styles.sortChipActive]}
+                onPress={() => setSortMode('title')}
+              >
+                <Text style={sortMode === 'title' ? styles.sortChipLabelActive : styles.sortChipLabel}>
+                  {t.sortByTitle}
+                </Text>
+              </Pressable>
+            </ScrollView>
+          </>
+        )}
+
         <View style={styles.listArea}>
           {workouts.length === 0 ? (
             <View style={styles.centered}>
               <Text style={styles.emptyText}>{t.noWorkouts}</Text>
             </View>
+          ) : visibleWorkouts.length === 0 ? (
+            <View style={styles.centered}>
+              <Text style={styles.emptyText}>{t.noSearchResults}</Text>
+            </View>
           ) : (
             <ScrollView contentContainerStyle={styles.listContent}>
-              {workouts.map((workout) => (
+              {visibleWorkouts.map((workout) => (
                 <Pressable
                   key={workout.id}
                   style={styles.card}
