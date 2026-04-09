@@ -10,10 +10,14 @@ type SettingsScreenProps = {
   language: Language;
   themeMode: ThemeMode;
   userName: string;
+  notificationsSupported: boolean;
+  remindersEnabled: boolean;
   onBack: () => void;
   onSelectLanguage: (language: Language) => void;
   onToggleTheme: (isDark: boolean) => void;
   onChangeUserName: (value: string) => void;
+  onRemindersToggle: (enabled: boolean) => void;
+  onTestReminder: () => void;
 };
 
 export function SettingsScreen({
@@ -22,10 +26,14 @@ export function SettingsScreen({
   language,
   themeMode,
   userName,
+  notificationsSupported,
+  remindersEnabled,
   onBack,
   onSelectLanguage,
   onToggleTheme,
   onChangeUserName,
+  onRemindersToggle,
+  onTestReminder,
 }: SettingsScreenProps) {
   const styles = StyleSheet.create({
     header: {
@@ -96,6 +104,13 @@ export function SettingsScreen({
       alignItems: 'center',
       justifyContent: 'space-between',
     },
+    settingColumn: {
+      gap: 6,
+    },
+    hintMuted: {
+      color: colors.secondaryText,
+      fontSize: 12,
+    },
   });
 
   return (
@@ -157,6 +172,23 @@ export function SettingsScreen({
           </Text>
           <Switch value={themeMode === 'dark'} onValueChange={onToggleTheme} />
         </View>
+
+        {notificationsSupported ? (
+          <>
+            <View style={styles.settingRow}>
+              <View style={styles.settingColumn}>
+                <Text style={styles.inputLabel}>{t.remindersDaily}</Text>
+                <Text style={styles.hintMuted}>{t.remindersDailyHint}</Text>
+              </View>
+              <Switch value={remindersEnabled} onValueChange={onRemindersToggle} />
+            </View>
+            <Pressable style={styles.textButtonPrimary} onPress={onTestReminder}>
+              <Text style={styles.textButtonPrimaryLabel}>{t.remindersTestButton}</Text>
+            </Pressable>
+          </>
+        ) : (
+          <Text style={styles.hintMuted}>{t.remindersWebUnavailable}</Text>
+        )}
       </View>
     </>
   );

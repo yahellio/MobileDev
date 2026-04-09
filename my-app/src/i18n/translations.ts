@@ -46,6 +46,11 @@ export const translations = {
     sortNewestFirst: 'Сначала новые',
     sortOldestFirst: 'Сначала старые',
     sortByTitle: 'По названию',
+    remindersDaily: 'Напоминания о тренировке',
+    remindersDailyHint: 'Каждый день в 10:00',
+    remindersTestButton: 'Тест: уведомление сейчас',
+    remindersPermissionDenied: 'Включите уведомления для приложения в настройках системы.',
+    remindersWebUnavailable: 'Уведомления доступны в приложении на телефоне, не в веб-версии.',
   },
   en: {
     splashTitle: 'Giga Tracker',
@@ -92,6 +97,11 @@ export const translations = {
     sortNewestFirst: 'Newest first',
     sortOldestFirst: 'Oldest first',
     sortByTitle: 'By title',
+    remindersDaily: 'Workout reminders',
+    remindersDailyHint: 'Every day at 10:00',
+    remindersTestButton: 'Test: notify now',
+    remindersPermissionDenied: 'Enable notifications for this app in system settings.',
+    remindersWebUnavailable: 'Notifications work in the mobile app, not on web.',
   },
 } as const;
 

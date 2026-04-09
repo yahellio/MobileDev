@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Alert } from 'react-native';
 
 import { exerciseRepository } from '../../data/repositories/exerciseRepository';
 import { quoteRepository } from '../../data/repositories/quoteRepository';
@@ -11,7 +12,21 @@ import {
 import { getRandomQuoteUseCase } from '../../domain/usecases/getRandomQuote';
 import { createWorkout, getWorkouts, initDb, removeWorkout, updateWorkout } from '../../db/workouts';
 import { translations } from '../../i18n/translations';
-import { loadSettings, saveLanguage, saveTheme, saveUserName } from '../../storage/settings';
+import {
+  cancelWorkoutReminder,
+  ensureNotificationPermission,
+  isNotificationSupported,
+  scheduleDailyWorkoutReminder,
+  sendTestWorkoutReminder,
+} from '../../notifications/workoutReminders';
+import {
+  loadSettings,
+  saveDailyReminderNotificationId,
+  saveLanguage,
+  saveRemindersEnabled,
+  saveTheme,
+  saveUserName,
+} from '../../storage/settings';
 import { themePalette } from '../../theme/palette';
 import type { Language, Screen, ThemeMode } from '../../types/app';
 import type { Workout, WorkoutForm } from '../../types/workout';
@@ -67,6 +82,7 @@ export function useAppViewModel() {
   const [quoteError, setQuoteError] = useState(false);
   const [catalogError, setCatalogError] = useState(false);
   const [exerciseLabelMap, setExerciseLabelMap] = useState<ExerciseLabelMap>({});
+  const [remindersEnabled, setRemindersEnabled] = useState(false);
 
   const t = translations[language];
   const colors = themePalette[themeMode];
@@ -135,6 +151,56 @@ export function useAppViewModel() {
     setLanguage(nextLanguage);
     await saveLanguage(nextLanguage);
     await loadCatalog(true, nextLanguage);
+    const s = await loadSettings();
+    if (s.remindersEnabled) {
+      const ok = await ensureNotificationPermission();
+      if (ok) {
+        await cancelWorkoutReminder(s.dailyReminderNotificationId);
+        const id = await scheduleDailyWorkoutReminder(nextLanguage);
+        if (id) {
+          await saveDailyReminderNotificationId(id);
+        }
+      }
+    }
+  }
+
+  async function handleRemindersToggle(enabled: boolean) {
+    if (!isNotificationSupported()) {
+      return;
+    }
+    if (enabled) {
+      const ok = await ensureNotificationPermission();
+      if (!ok) {
+        Alert.alert('', t.remindersPermissionDenied);
+        return;
+      }
+      const prev = await loadSettings();
+      await cancelWorkoutReminder(prev.dailyReminderNotificationId);
+      const id = await scheduleDailyWorkoutReminder(language);
+      if (id) {
+        await saveDailyReminderNotificationId(id);
+        await saveRemindersEnabled(true);
+        setRemindersEnabled(true);
+      }
+    } else {
+      const prev = await loadSettings();
+      await cancelWorkoutReminder(prev.dailyReminderNotificationId);
+      await saveDailyReminderNotificationId(null);
+      await saveRemindersEnabled(false);
+      setRemindersEnabled(false);
+    }
+  }
+
+  async function handleTestReminder() {
+    if (!isNotificationSupported()) {
+      return;
+    }
+    const ok = await ensureNotificationPermission();
+    if (!ok) {
+      Alert.alert('', t.remindersPermissionDenied);
+      return;
+    }
+    await sendTestWorkoutReminder(language);
   }
 
   async function handleUserNameChange(value: string) {
@@ -183,6 +249,20 @@ export function useAppViewModel() {
         if (settings.theme) setThemeMode(settings.theme);
         if (settings.language) setLanguage(settings.language);
         if (settings.userName) setUserName(settings.userName);
+        if (settings.remindersEnabled === true) {
+          setRemindersEnabled(true);
+        }
+
+        if (settings.remindersEnabled) {
+          const ok = await ensureNotificationPermission();
+          if (ok) {
+            await cancelWorkoutReminder(settings.dailyReminderNotificationId);
+            const id = await scheduleDailyWorkoutReminder(bootstrapLanguage);
+            if (id) {
+              await saveDailyReminderNotificationId(id);
+            }
+          }
+        }
 
         const rows = await getWorkouts();
         if (isMounted) {
@@ -272,5 +352,9 @@ export function useAppViewModel() {
     handleLanguageChange,
     handleUserNameChange,
     exerciseLabelResolver,
+    notificationsSupported: isNotificationSupported(),
+    remindersEnabled,
+    handleRemindersToggle,
+    handleTestReminder,
   };
 }

@@ -77,6 +77,14 @@ function AppContainer() {
           onChangeUserName={(value) => {
             void vm.handleUserNameChange(value);
           }}
+          notificationsSupported={vm.notificationsSupported}
+          remindersEnabled={vm.remindersEnabled}
+          onRemindersToggle={(enabled) => {
+            void vm.handleRemindersToggle(enabled);
+          }}
+          onTestReminder={() => {
+            void vm.handleTestReminder();
+          }}
         />
       )}
 
