@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Alert } from 'react-native';
 
 import { exerciseRepository } from '../../data/repositories/exerciseRepository';
 import { quoteRepository } from '../../data/repositories/quoteRepository';
@@ -9,9 +10,24 @@ import {
   refreshExerciseCatalogUseCase,
 } from '../../domain/usecases/getExerciseCatalog';
 import { getRandomQuoteUseCase } from '../../domain/usecases/getRandomQuote';
+import { deleteWorkoutRemote, isImageKitConfigured, saveWorkoutRemote, uploadWorkoutImage } from '../../data/remote/workoutRemote';
 import { createWorkout, getWorkouts, initDb, removeWorkout, updateWorkout } from '../../db/workouts';
 import { translations } from '../../i18n/translations';
-import { loadSettings, saveLanguage, saveTheme, saveUserName } from '../../storage/settings';
+import {
+  cancelWorkoutReminder,
+  ensureNotificationPermission,
+  isNotificationSupported,
+  scheduleDailyWorkoutReminder,
+  sendTestWorkoutReminder,
+} from '../../notifications/workoutReminders';
+import {
+  loadSettings,
+  saveDailyReminderNotificationId,
+  saveLanguage,
+  saveRemindersEnabled,
+  saveTheme,
+  saveUserName,
+} from '../../storage/settings';
 import { themePalette } from '../../theme/palette';
 import type { Language, Screen, ThemeMode } from '../../types/app';
 import type { Workout, WorkoutForm } from '../../types/workout';
@@ -58,6 +74,8 @@ export function useAppViewModel() {
     description: '',
     duration_minutes: '45',
     exercises_csv: '',
+    image_url: '',
+    image_uri: null,
   });
 
   const [isOnline, setIsOnline] = useState(true);
@@ -67,6 +85,7 @@ export function useAppViewModel() {
   const [quoteError, setQuoteError] = useState(false);
   const [catalogError, setCatalogError] = useState(false);
   const [exerciseLabelMap, setExerciseLabelMap] = useState<ExerciseLabelMap>({});
+  const [remindersEnabled, setRemindersEnabled] = useState(false);
 
   const t = translations[language];
   const colors = themePalette[themeMode];
@@ -87,6 +106,8 @@ export function useAppViewModel() {
       description: '',
       duration_minutes: '45',
       exercises_csv: '',
+      image_url: '',
+      image_uri: null,
     });
     setModalVisible(true);
   }
@@ -98,6 +119,8 @@ export function useAppViewModel() {
       description: workout.description,
       duration_minutes: String(workout.duration_minutes),
       exercises_csv: workout.exercises_csv,
+      image_url: workout.image_url ?? '',
+      image_uri: null,
     });
     setModalVisible(true);
   }
@@ -107,10 +130,47 @@ export function useAppViewModel() {
       return;
     }
 
+    let imageUrl = form.image_url.trim();
+    if (form.image_uri && isImageKitConfigured()) {
+      try {
+        imageUrl = await uploadWorkoutImage(form.image_uri);
+      } catch {
+        // нет ключа ImageKit или сбой загрузки — оставляем прежний URL
+      }
+    }
+
+    const data: WorkoutForm = {
+      title: form.title.trim(),
+      description: form.description.trim(),
+      duration_minutes: form.duration_minutes,
+      exercises_csv: form.exercises_csv.trim(),
+      image_url: imageUrl,
+      image_uri: null,
+    };
+
     if (editingWorkoutId === null) {
-      await createWorkout(form);
+      const created = await createWorkout(data);
+      void saveWorkoutRemote({
+        id: created.id,
+        title: data.title,
+        description: data.description,
+        workout_date: created.workout_date,
+        duration_minutes: Number(data.duration_minutes) || 0,
+        exercises_csv: data.exercises_csv,
+        image_url: data.image_url,
+      });
     } else {
-      await updateWorkout(editingWorkoutId, form);
+      await updateWorkout(editingWorkoutId, data);
+      const prev = workouts.find((w) => w.id === editingWorkoutId);
+      void saveWorkoutRemote({
+        id: editingWorkoutId,
+        title: data.title,
+        description: data.description,
+        workout_date: prev?.workout_date ?? new Date().toISOString(),
+        duration_minutes: Number(data.duration_minutes) || 0,
+        exercises_csv: data.exercises_csv,
+        image_url: data.image_url,
+      });
     }
 
     await refreshWorkouts();
@@ -118,6 +178,7 @@ export function useAppViewModel() {
   }
 
   async function handleDelete(id: number) {
+    void deleteWorkoutRemote(id);
     await removeWorkout(id);
     if (screen.name === 'details' && screen.workoutId === id) {
       setScreen({ name: 'home' });
@@ -135,6 +196,56 @@ export function useAppViewModel() {
     setLanguage(nextLanguage);
     await saveLanguage(nextLanguage);
     await loadCatalog(true, nextLanguage);
+    const s = await loadSettings();
+    if (s.remindersEnabled) {
+      const ok = await ensureNotificationPermission();
+      if (ok) {
+        await cancelWorkoutReminder(s.dailyReminderNotificationId);
+        const id = await scheduleDailyWorkoutReminder(nextLanguage);
+        if (id) {
+          await saveDailyReminderNotificationId(id);
+        }
+      }
+    }
+  }
+
+  async function handleRemindersToggle(enabled: boolean) {
+    if (!isNotificationSupported()) {
+      return;
+    }
+    if (enabled) {
+      const ok = await ensureNotificationPermission();
+      if (!ok) {
+        Alert.alert('', t.remindersPermissionDenied);
+        return;
+      }
+      const prev = await loadSettings();
+      await cancelWorkoutReminder(prev.dailyReminderNotificationId);
+      const id = await scheduleDailyWorkoutReminder(language);
+      if (id) {
+        await saveDailyReminderNotificationId(id);
+        await saveRemindersEnabled(true);
+        setRemindersEnabled(true);
+      }
+    } else {
+      const prev = await loadSettings();
+      await cancelWorkoutReminder(prev.dailyReminderNotificationId);
+      await saveDailyReminderNotificationId(null);
+      await saveRemindersEnabled(false);
+      setRemindersEnabled(false);
+    }
+  }
+
+  async function handleTestReminder() {
+    if (!isNotificationSupported()) {
+      return;
+    }
+    const ok = await ensureNotificationPermission();
+    if (!ok) {
+      Alert.alert('', t.remindersPermissionDenied);
+      return;
+    }
+    await sendTestWorkoutReminder(language);
   }
 
   async function handleUserNameChange(value: string) {
@@ -183,6 +294,20 @@ export function useAppViewModel() {
         if (settings.theme) setThemeMode(settings.theme);
         if (settings.language) setLanguage(settings.language);
         if (settings.userName) setUserName(settings.userName);
+        if (settings.remindersEnabled === true) {
+          setRemindersEnabled(true);
+        }
+
+        if (settings.remindersEnabled) {
+          const ok = await ensureNotificationPermission();
+          if (ok) {
+            await cancelWorkoutReminder(settings.dailyReminderNotificationId);
+            const id = await scheduleDailyWorkoutReminder(bootstrapLanguage);
+            if (id) {
+              await saveDailyReminderNotificationId(id);
+            }
+          }
+        }
 
         const rows = await getWorkouts();
         if (isMounted) {
@@ -272,5 +397,9 @@ export function useAppViewModel() {
     handleLanguageChange,
     handleUserNameChange,
     exerciseLabelResolver,
+    notificationsSupported: isNotificationSupported(),
+    remindersEnabled,
+    handleRemindersToggle,
+    handleTestReminder,
   };
 }

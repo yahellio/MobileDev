@@ -1,4 +1,4 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { TranslationDictionary } from '../i18n/translations';
@@ -89,6 +89,18 @@ export function DetailsScreen({
       color: colors.text,
       fontSize: 20,
       fontWeight: '700',
+      flex: 1,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    titleImage: {
+      width: 72,
+      height: 72,
+      borderRadius: 8,
+      backgroundColor: colors.background,
     },
     cardText: {
       color: colors.secondaryText,
@@ -127,7 +139,12 @@ export function DetailsScreen({
         </View>
       ) : (
         <View style={styles.card}>
-          <Text style={styles.workoutName}>{workout.title}</Text>
+          <View style={styles.titleRow}>
+            {workout.image_url?.trim() ? (
+              <Image source={{ uri: workout.image_url.trim() }} style={styles.titleImage} />
+            ) : null}
+            <Text style={styles.workoutName}>{workout.title}</Text>
+          </View>
           <Text style={styles.subtitle}>{workout.description}</Text>
           <Text style={styles.cardText}>
             {t.duration}: {workout.duration_minutes} {t.minutesShort}

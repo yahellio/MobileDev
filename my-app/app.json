@@ -34,6 +34,13 @@
     },
     "plugins": [
       "expo-sqlite",
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Приложение использует фото для иллюстрации тренировки."
+        }
+      ],
       [
         "expo-splash-screen",
         {
