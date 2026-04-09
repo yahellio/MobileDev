@@ -10,6 +10,7 @@ import {
   refreshExerciseCatalogUseCase,
 } from '../../domain/usecases/getExerciseCatalog';
 import { getRandomQuoteUseCase } from '../../domain/usecases/getRandomQuote';
+import { deleteWorkoutRemote, isImageKitConfigured, saveWorkoutRemote, uploadWorkoutImage } from '../../data/remote/workoutRemote';
 import { createWorkout, getWorkouts, initDb, removeWorkout, updateWorkout } from '../../db/workouts';
 import { translations } from '../../i18n/translations';
 import {
@@ -73,6 +74,8 @@ export function useAppViewModel() {
     description: '',
     duration_minutes: '45',
     exercises_csv: '',
+    image_url: '',
+    image_uri: null,
   });
 
   const [isOnline, setIsOnline] = useState(true);
@@ -103,6 +106,8 @@ export function useAppViewModel() {
       description: '',
       duration_minutes: '45',
       exercises_csv: '',
+      image_url: '',
+      image_uri: null,
     });
     setModalVisible(true);
   }
@@ -114,6 +119,8 @@ export function useAppViewModel() {
       description: workout.description,
       duration_minutes: String(workout.duration_minutes),
       exercises_csv: workout.exercises_csv,
+      image_url: workout.image_url ?? '',
+      image_uri: null,
     });
     setModalVisible(true);
   }
@@ -123,10 +130,47 @@ export function useAppViewModel() {
       return;
     }
 
+    let imageUrl = form.image_url.trim();
+    if (form.image_uri && isImageKitConfigured()) {
+      try {
+        imageUrl = await uploadWorkoutImage(form.image_uri);
+      } catch {
+        // нет ключа ImageKit или сбой загрузки — оставляем прежний URL
+      }
+    }
+
+    const data: WorkoutForm = {
+      title: form.title.trim(),
+      description: form.description.trim(),
+      duration_minutes: form.duration_minutes,
+      exercises_csv: form.exercises_csv.trim(),
+      image_url: imageUrl,
+      image_uri: null,
+    };
+
     if (editingWorkoutId === null) {
-      await createWorkout(form);
+      const created = await createWorkout(data);
+      void saveWorkoutRemote({
+        id: created.id,
+        title: data.title,
+        description: data.description,
+        workout_date: created.workout_date,
+        duration_minutes: Number(data.duration_minutes) || 0,
+        exercises_csv: data.exercises_csv,
+        image_url: data.image_url,
+      });
     } else {
-      await updateWorkout(editingWorkoutId, form);
+      await updateWorkout(editingWorkoutId, data);
+      const prev = workouts.find((w) => w.id === editingWorkoutId);
+      void saveWorkoutRemote({
+        id: editingWorkoutId,
+        title: data.title,
+        description: data.description,
+        workout_date: prev?.workout_date ?? new Date().toISOString(),
+        duration_minutes: Number(data.duration_minutes) || 0,
+        exercises_csv: data.exercises_csv,
+        image_url: data.image_url,
+      });
     }
 
     await refreshWorkouts();
@@ -134,6 +178,7 @@ export function useAppViewModel() {
   }
 
   async function handleDelete(id: number) {
+    void deleteWorkoutRemote(id);
     await removeWorkout(id);
     if (screen.name === 'details' && screen.workoutId === id) {
       setScreen({ name: 'home' });

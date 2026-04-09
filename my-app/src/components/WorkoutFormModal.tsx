@@ -1,5 +1,6 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ExercisePickerModal } from './ExercisePickerModal';
 import type { RemoteMuscleGroup } from '../domain/models/exercise';
@@ -152,7 +153,38 @@ export function WorkoutFormModal({
       color: colors.secondaryText,
       fontSize: 13,
     },
+    photoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    photoThumb: {
+      width: 72,
+      height: 72,
+      borderRadius: 8,
+      backgroundColor: colors.background,
+    },
+    photoActions: {
+      flex: 1,
+      gap: 6,
+    },
   });
+
+  async function pickWorkoutImage() {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.85,
+    });
+    if (!result.canceled && result.assets[0]?.uri) {
+      onChange({ ...form, image_uri: result.assets[0].uri });
+    }
+  }
+
+  const previewUri = form.image_uri ?? (form.image_url.trim() ? form.image_url : null);
 
   return (
     <>
@@ -188,6 +220,28 @@ export function WorkoutFormModal({
               placeholder={t.durationMinutes}
               placeholderTextColor={colors.secondaryText}
             />
+
+            <Text style={styles.inputLabel}>{t.workoutPhoto}</Text>
+            <View style={styles.photoRow}>
+              {previewUri ? (
+                <Image source={{ uri: previewUri }} style={styles.photoThumb} />
+              ) : (
+                <View style={styles.photoThumb} />
+              )}
+              <View style={styles.photoActions}>
+                <Pressable style={styles.textButtonPrimary} onPress={pickWorkoutImage}>
+                  <Text style={styles.textButtonPrimaryLabel}>{t.pickWorkoutPhoto}</Text>
+                </Pressable>
+                {(form.image_uri || form.image_url.trim()) && (
+                  <Pressable
+                    style={styles.textButton}
+                    onPress={() => onChange({ ...form, image_uri: null, image_url: '' })}
+                  >
+                    <Text style={styles.textButtonLabel}>{t.clearWorkoutPhoto}</Text>
+                  </Pressable>
+                )}
+              </View>
+            </View>
 
             <Pressable
               style={styles.inputLabelButton}

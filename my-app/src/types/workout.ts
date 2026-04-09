@@ -5,6 +5,7 @@ export type Workout = {
   workout_date: string;
   duration_minutes: number;
   exercises_csv: string;
+  image_url: string;
 };
 
 export type WorkoutForm = {
@@ -12,4 +13,7 @@ export type WorkoutForm = {
   description: string;
   duration_minutes: string;
   exercises_csv: string;
+  image_url: string;
+  /** локальный uri до сохранения (не пишется в SQLite) */
+  image_uri: string | null;
 };

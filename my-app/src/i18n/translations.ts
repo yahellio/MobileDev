@@ -51,6 +51,9 @@ export const translations = {
     remindersTestButton: 'Тест: уведомление сейчас',
     remindersPermissionDenied: 'Включите уведомления для приложения в настройках системы.',
     remindersWebUnavailable: 'Уведомления доступны в приложении на телефоне, не в веб-версии.',
+    workoutPhoto: 'Фото тренировки',
+    pickWorkoutPhoto: 'Выбрать фото',
+    clearWorkoutPhoto: 'Убрать фото',
   },
   en: {
     splashTitle: 'Giga Tracker',
@@ -102,6 +105,9 @@ export const translations = {
     remindersTestButton: 'Test: notify now',
     remindersPermissionDenied: 'Enable notifications for this app in system settings.',
     remindersWebUnavailable: 'Notifications work in the mobile app, not on web.',
+    workoutPhoto: 'Workout photo',
+    pickWorkoutPhoto: 'Choose photo',
+    clearWorkoutPhoto: 'Remove photo',
   },
 } as const;
 
