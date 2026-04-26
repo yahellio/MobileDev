@@ -1,4 +1,4 @@
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { TranslationDictionary } from '../i18n/translations';
@@ -68,6 +68,9 @@ export function DetailsScreen({
       color: colors.secondaryText,
       textAlign: 'center',
     },
+    contentColumn: {
+      flex: 1,
+    },
     card: {
       flex: 1,
       backgroundColor: colors.card,
@@ -78,7 +81,7 @@ export function DetailsScreen({
       gap: 12,
       marginHorizontal: 16,
       marginTop: 10,
-      marginBottom: Math.max(12, insets.bottom + 8),
+      marginBottom: 0,
     },
     cardTitle: {
       color: colors.text,
@@ -112,6 +115,24 @@ export function DetailsScreen({
     exercisesListContent: {
       paddingBottom: 6,
     },
+    shareRow: {
+      marginHorizontal: 16,
+      marginTop: 12,
+      marginBottom: Math.max(12, insets.bottom + 8),
+    },
+    shareButton: {
+      width: '100%',
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+    },
+    shareButtonLabel: {
+      color: '#fff',
+      fontSize: 16,
+      fontWeight: '600',
+    },
   });
 
   const exerciseLabels = workout
@@ -121,6 +142,25 @@ export function DetailsScreen({
         .filter(Boolean)
         .map((value) => resolveExerciseLabel(value))
     : [];
+
+  async function onShare() {
+    if (!workout) {
+      return;
+    }
+    const names = exerciseLabels;
+    const parts = [
+      `${t.splashTitle}`,
+      `${t.title}: ${workout.title}`,
+      `${t.description}: ${workout.description}`,
+      `${t.duration}: ${workout.duration_minutes} ${t.minutesShort}`,
+      `${t.date}: ${formatDate(workout.workout_date, language)}`,
+      names.length > 0 ? `${t.exercises}:\n${names.map((n) => `• ${n}`).join('\n')}` : null,
+    ].filter(Boolean) as string[];
+    const message = parts.join('\n\n');
+    try {
+      await Share.share({ message, title: workout.title });
+    } catch {}
+  }
 
   return (
     <>
@@ -138,36 +178,43 @@ export function DetailsScreen({
           <Text style={styles.emptyText}>{t.noWorkouts}</Text>
         </View>
       ) : (
-        <View style={styles.card}>
-          <View style={styles.titleRow}>
-            {workout.image_url?.trim() ? (
-              <Image source={{ uri: workout.image_url.trim() }} style={styles.titleImage} />
-            ) : null}
-            <Text style={styles.workoutName}>{workout.title}</Text>
-          </View>
-          <Text style={styles.subtitle}>{workout.description}</Text>
-          <Text style={styles.cardText}>
-            {t.duration}: {workout.duration_minutes} {t.minutesShort}
-          </Text>
-          <Text style={styles.cardText}>
-            {t.date}: {formatDate(workout.workout_date, language)}
-          </Text>
-          <Text style={styles.cardTitle}>{t.exercises}</Text>
+        <View style={styles.contentColumn}>
+          <View style={styles.card}>
+            <View style={styles.titleRow}>
+              {workout.image_url?.trim() ? (
+                <Image source={{ uri: workout.image_url.trim() }} style={styles.titleImage} />
+              ) : null}
+              <Text style={styles.workoutName}>{workout.title}</Text>
+            </View>
+            <Text style={styles.subtitle}>{workout.description}</Text>
+            <Text style={styles.cardText}>
+              {t.duration}: {workout.duration_minutes} {t.minutesShort}
+            </Text>
+            <Text style={styles.cardText}>
+              {t.date}: {formatDate(workout.workout_date, language)}
+            </Text>
+            <Text style={styles.cardTitle}>{t.exercises}</Text>
 
-          <ScrollView
-            style={styles.exercisesScroll}
-            contentContainerStyle={styles.exercisesListContent}
-            showsVerticalScrollIndicator
-          >
-            {exerciseLabels.map((exercise, index) => (
-              <Text key={`${exercise}-${index}`} style={styles.cardText}>
-                • {exercise}
-              </Text>
-            ))}
-            {exerciseLabels.length === 0 && (
-              <Text style={styles.cardText}>{t.noExercises}</Text>
-            )}
-          </ScrollView>
+            <ScrollView
+              style={styles.exercisesScroll}
+              contentContainerStyle={styles.exercisesListContent}
+              showsVerticalScrollIndicator
+            >
+              {exerciseLabels.map((exercise, index) => (
+                <Text key={`${exercise}-${index}`} style={styles.cardText}>
+                  • {exercise}
+                </Text>
+              ))}
+              {exerciseLabels.length === 0 && (
+                <Text style={styles.cardText}>{t.noExercises}</Text>
+              )}
+            </ScrollView>
+          </View>
+          <View style={styles.shareRow}>
+            <Pressable style={styles.shareButton} onPress={() => void onShare()}>
+              <Text style={styles.shareButtonLabel}>{t.share}</Text>
+            </Pressable>
+          </View>
         </View>
       )}
     </>
