@@ -1,4 +1,11 @@
-import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth';
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  type User,
+} from 'firebase/auth';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
@@ -60,6 +67,21 @@ function splitExerciseCsv(exercisesCsv: string): string[] {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function userDisplayName(user: User | null): string {
+  if (!user) {
+    return 'User';
+  }
+  const n = user.displayName?.trim();
+  if (n) {
+    return n;
+  }
+  const fromEmail = user.email?.split('@')[0];
+  if (fromEmail) {
+    return fromEmail;
+  }
+  return 'User';
 }
 
 export function useAppViewModel() {
@@ -265,6 +287,15 @@ export function useAppViewModel() {
 
   async function handleUserNameChange(value: string) {
     setUserName(value);
+    const fb = getFirebase();
+    if (fb?.auth.currentUser) {
+      const trimmed = value.trim();
+      try {
+        await updateProfile(fb.auth.currentUser, { displayName: trimmed || undefined });
+      } catch {
+        /* keep local label */
+      }
+    }
     await saveUserName(value);
   }
 
@@ -322,7 +353,6 @@ export function useAppViewModel() {
         const bootstrapLanguage = settings.language ?? 'ru';
         if (settings.theme) setThemeMode(settings.theme);
         if (settings.language) setLanguage(settings.language);
-        if (settings.userName) setUserName(settings.userName);
         if (settings.remindersEnabled === true) {
           setRemindersEnabled(true);
         }
@@ -347,12 +377,14 @@ export function useAppViewModel() {
             setFirebaseUser(user);
             setAuthReady(true);
             if (user) {
+              setUserName(userDisplayName(user));
               void getWorkouts(user.uid).then((rows) => {
                 if (isMounted) {
                   setWorkouts(rows);
                 }
               });
             } else {
+              setUserName('User');
               setWorkouts([]);
             }
           });
@@ -448,15 +480,21 @@ export function useAppViewModel() {
     }
   }
 
-  async function handleAuthRegister(email: string, password: string) {
+  async function handleAuthRegister(email: string, password: string, displayName: string) {
     const fb = getFirebase();
     if (!fb) {
+      return;
+    }
+    const name = displayName.trim();
+    if (!name) {
       return;
     }
     setAuthError(null);
     setAuthSubmitting(true);
     try {
-      await createUserWithEmailAndPassword(fb.auth, email.trim(), password);
+      const cred = await createUserWithEmailAndPassword(fb.auth, email.trim(), password);
+      await updateProfile(cred.user, { displayName: name });
+      setUserName(name);
     } catch (e) {
       setAuthError(authErrorMessage(e));
     } finally {

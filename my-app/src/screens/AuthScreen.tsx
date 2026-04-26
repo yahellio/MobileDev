@@ -11,29 +11,30 @@ import {
 
 import type { TranslationDictionary } from '../i18n/translations';
 import type { ThemeColors } from '../theme/palette';
-import type { Language } from '../types/app';
+
+type AuthMode = 'signin' | 'register';
 
 type AuthScreenProps = {
   colors: ThemeColors;
   t: TranslationDictionary;
-  language: Language;
   firebaseAvailable: boolean;
   submitting: boolean;
   errorMessage: string | null;
   onSignIn: (email: string, password: string) => void;
-  onRegister: (email: string, password: string) => void;
+  onRegister: (email: string, password: string, displayName: string) => void;
 };
 
 export function AuthScreen({
   colors,
   t,
-  language,
   firebaseAvailable,
   submitting,
   errorMessage,
   onSignIn,
   onRegister,
 }: AuthScreenProps) {
+  const [mode, setMode] = useState<AuthMode>('signin');
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -56,7 +57,31 @@ export function AuthScreen({
     hint: {
       color: colors.secondaryText,
       fontSize: 14,
-      marginBottom: 24,
+      marginBottom: 20,
+    },
+    modeRow: {
+      flexDirection: 'row',
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      overflow: 'hidden',
+      marginBottom: 20,
+    },
+    modePill: {
+      flex: 1,
+      paddingVertical: 12,
+      alignItems: 'center',
+    },
+    modePillActive: {
+      backgroundColor: colors.primary,
+    },
+    modePillLabel: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
+    modePillLabelActive: {
+      color: '#fff',
     },
     inputLabel: {
       color: colors.secondaryText,
@@ -83,34 +108,19 @@ export function AuthScreen({
       fontSize: 14,
       lineHeight: 20,
     },
-    row: {
-      flexDirection: 'row',
-      gap: 10,
+    primaryButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 10,
+      paddingVertical: 14,
+      alignItems: 'center',
       marginTop: 8,
     },
-    textButton: {
-      flex: 1,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
-      paddingVertical: 12,
-      alignItems: 'center',
+    primaryButtonDisabled: {
+      opacity: 0.5,
     },
-    textButtonLabel: {
-      color: colors.text,
-      fontSize: 15,
-      fontWeight: '600',
-    },
-    textButtonPrimary: {
-      flex: 1,
-      backgroundColor: colors.primary,
-      borderRadius: 8,
-      paddingVertical: 12,
-      alignItems: 'center',
-    },
-    textButtonPrimaryLabel: {
+    primaryButtonLabel: {
       color: '#fff',
-      fontSize: 15,
+      fontSize: 16,
       fontWeight: '600',
     },
   });
@@ -128,7 +138,11 @@ export function AuthScreen({
     );
   }
 
-  const canSubmit = email.trim().length > 0 && password.length > 0 && !submitting;
+  const isRegister = mode === 'register';
+  const canSignIn = email.trim().length > 0 && password.length > 0 && !submitting;
+  const canRegister =
+    displayName.trim().length > 0 && email.trim().length > 0 && password.length > 0 && !submitting;
+  const canSubmit = isRegister ? canRegister : canSignIn;
 
   return (
     <ScrollView
@@ -137,7 +151,34 @@ export function AuthScreen({
       keyboardShouldPersistTaps="handled"
     >
       <Text style={styles.title}>{t.authTitle}</Text>
-      <Text style={styles.hint}>{language === 'ru' ? 'Войдите или создайте аккаунт' : 'Sign in or create an account'}</Text>
+      <Text style={styles.hint}>{isRegister ? t.authHintRegister : t.authHintSignIn}</Text>
+
+      <View style={styles.modeRow}>
+        <Pressable
+          style={[styles.modePill, mode === 'signin' && styles.modePillActive]}
+          onPress={() => setMode('signin')}
+          disabled={submitting}
+        >
+          <Text
+            style={[styles.modePillLabel, mode === 'signin' && styles.modePillLabelActive]}
+            numberOfLines={1}
+          >
+            {t.authModeSignIn}
+          </Text>
+        </Pressable>
+        <Pressable
+          style={[styles.modePill, mode === 'register' && styles.modePillActive]}
+          onPress={() => setMode('register')}
+          disabled={submitting}
+        >
+          <Text
+            style={[styles.modePillLabel, mode === 'register' && styles.modePillLabelActive]}
+            numberOfLines={1}
+          >
+            {t.authModeRegister}
+          </Text>
+        </Pressable>
+      </View>
 
       <Text style={styles.inputLabel}>{t.authEmail}</Text>
       <TextInput
@@ -165,33 +206,41 @@ export function AuthScreen({
         placeholder="••••••••"
         placeholderTextColor={colors.secondaryText}
         editable={!submitting}
-        onSubmitEditing={() => {
-          if (canSubmit) {
-            onSignIn(email, password);
-          }
-        }}
       />
+
+      {isRegister ? (
+        <>
+          <Text style={styles.inputLabel}>{t.authDisplayName}</Text>
+          <TextInput
+            value={displayName}
+            onChangeText={setDisplayName}
+            style={styles.input}
+            autoComplete="name"
+            textContentType="name"
+            placeholder={t.authDisplayNamePlaceholder}
+            placeholderTextColor={colors.secondaryText}
+            editable={!submitting}
+          />
+        </>
+      ) : null}
 
       {errorMessage ? <Text style={styles.error}>{errorMessage}</Text> : null}
 
       {submitting ? <ActivityIndicator color={colors.primary} style={{ marginBottom: 8 }} /> : null}
 
-      <View style={styles.row}>
-        <Pressable
-          style={styles.textButton}
-          onPress={() => onRegister(email, password)}
-          disabled={!canSubmit}
-        >
-          <Text style={styles.textButtonLabel}>{t.authSignUp}</Text>
-        </Pressable>
-        <Pressable
-          style={styles.textButtonPrimary}
-          onPress={() => onSignIn(email, password)}
-          disabled={!canSubmit}
-        >
-          <Text style={styles.textButtonPrimaryLabel}>{t.authSignIn}</Text>
-        </Pressable>
-      </View>
+      <Pressable
+        style={[styles.primaryButton, !canSubmit && styles.primaryButtonDisabled]}
+        onPress={() => {
+          if (isRegister) {
+            onRegister(email, password, displayName);
+          } else {
+            onSignIn(email, password);
+          }
+        }}
+        disabled={!canSubmit}
+      >
+        <Text style={styles.primaryButtonLabel}>{isRegister ? t.authSignUp : t.authSignIn}</Text>
+      </Pressable>
     </ScrollView>
   );
 }

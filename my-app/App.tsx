@@ -33,15 +33,14 @@ function AppContainer() {
         <AuthScreen
           colors={vm.colors}
           t={vm.t}
-          language={vm.language}
           firebaseAvailable={getFirebase() !== null}
           submitting={vm.authSubmitting}
           errorMessage={vm.authError}
           onSignIn={(email, password) => {
             void vm.handleAuthSignIn(email, password);
           }}
-          onRegister={(email, password) => {
-            void vm.handleAuthRegister(email, password);
+          onRegister={(email, password, displayName) => {
+            void vm.handleAuthRegister(email, password, displayName);
           }}
         />
       </SafeAreaView>
