@@ -148,13 +148,14 @@ export function DetailsScreen({
       return;
     }
     const names = exerciseLabels;
+    const desc = workout.description.trim();
     const parts = [
-      `${t.splashTitle}`,
-      `${t.title}: ${workout.title}`,
-      `${t.description}: ${workout.description}`,
-      `${t.duration}: ${workout.duration_minutes} ${t.minutesShort}`,
-      `${t.date}: ${formatDate(workout.workout_date, language)}`,
-      names.length > 0 ? `${t.exercises}:\n${names.map((n) => `• ${n}`).join('\n')}` : null,
+      `🏋️ ${t.splashTitle}`,
+      `📝 ${t.title}: ${workout.title}`,
+      desc ? `📄 ${t.description}: ${desc}` : null,
+      `⏱️ ${t.duration}: ${workout.duration_minutes} ${t.minutesShort}`,
+      `📅 ${t.date}: ${formatDate(workout.workout_date, language)}`,
+      names.length > 0 ? `💪 ${t.exercises}:\n${names.map((n) => `  • ${n}`).join('\n')}` : null,
     ].filter(Boolean) as string[];
     const message = parts.join('\n\n');
     try {
