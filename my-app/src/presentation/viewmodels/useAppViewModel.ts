@@ -19,8 +19,21 @@ import {
   refreshExerciseCatalogUseCase,
 } from '../../domain/usecases/getExerciseCatalog';
 import { getRandomQuoteUseCase } from '../../domain/usecases/getRandomQuote';
-import { deleteWorkoutRemote, isImageKitConfigured, saveWorkoutRemote, uploadWorkoutImage } from '../../data/remote/workoutRemote';
-import { createWorkout, getWorkouts, initDb, removeWorkout, updateWorkout } from '../../db/workouts';
+import {
+  deleteWorkoutRemote,
+  isImageKitConfigured,
+  saveWorkoutRemote,
+  subscribeWorkoutsRemote,
+  uploadWorkoutImage,
+} from '../../data/remote/workoutRemote';
+import {
+  applyWorkoutsSnapshotFromRemote,
+  createWorkout,
+  getWorkouts,
+  initDb,
+  removeWorkout,
+  updateWorkout,
+} from '../../db/workouts';
 import { translations } from '../../i18n/translations';
 import {
   cancelWorkoutReminder,
@@ -339,6 +352,18 @@ export function useAppViewModel() {
       clearTimeout(id);
     };
   }, [authReady]);
+
+  useEffect(() => {
+    const uid = firebaseUser?.uid;
+    if (!uid) {
+      return;
+    }
+    const unsub = subscribeWorkoutsRemote(uid, (list) => {
+      setWorkouts(list);
+      void applyWorkoutsSnapshotFromRemote(uid, list);
+    });
+    return unsub;
+  }, [firebaseUser?.uid]);
 
   useEffect(() => {
     let isMounted = true;

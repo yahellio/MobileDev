@@ -79,3 +79,24 @@ export async function removeWorkout(id: number, userId: string) {
   const db = await dbPromise;
   await db.runAsync('DELETE FROM workouts WHERE id = ? AND user_id = ?;', id, userId);
 }
+
+export async function applyWorkoutsSnapshotFromRemote(userId: string, rows: Workout[]): Promise<void> {
+  const db = await dbPromise;
+  await db.withTransactionAsync(async () => {
+    await db.runAsync('DELETE FROM workouts WHERE user_id = ?;', userId);
+    for (const w of rows) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO workouts (id, title, description, workout_date, duration_minutes, exercises_csv, image_url, user_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+        w.id,
+        w.title,
+        w.description,
+        w.workout_date,
+        w.duration_minutes,
+        w.exercises_csv,
+        w.image_url ?? '',
+        userId
+      );
+    }
+  });
+}
