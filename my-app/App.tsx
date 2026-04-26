@@ -1,9 +1,11 @@
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { getFirebase } from './src/config/firebase';
 import { SplashScreen } from './src/components/SplashScreen';
 import { WorkoutFormModal } from './src/components/WorkoutFormModal';
 import { useAppViewModel } from './src/presentation/viewmodels/useAppViewModel';
+import { AuthScreen } from './src/screens/AuthScreen';
 import { DetailsScreen } from './src/screens/DetailsScreen';
 import { HomeScreen } from './src/screens/HomeScreen';
 import { SettingsScreen } from './src/screens/SettingsScreen';
@@ -18,6 +20,31 @@ function AppContainer() {
         <StatusBar style={vm.themeMode === 'dark' ? 'light' : 'dark'} />
         <SplashScreen t={vm.t} colors={vm.colors} isDark={vm.themeMode === 'dark'} />
       </>
+    );
+  }
+
+  if (!vm.firebaseUser) {
+    return (
+      <SafeAreaView
+        edges={['top', 'left', 'right']}
+        style={{ flex: 1, backgroundColor: vm.colors.background }}
+      >
+        <StatusBar style={vm.themeMode === 'dark' ? 'light' : 'dark'} />
+        <AuthScreen
+          colors={vm.colors}
+          t={vm.t}
+          language={vm.language}
+          firebaseAvailable={getFirebase() !== null}
+          submitting={vm.authSubmitting}
+          errorMessage={vm.authError}
+          onSignIn={(email, password) => {
+            void vm.handleAuthSignIn(email, password);
+          }}
+          onRegister={(email, password) => {
+            void vm.handleAuthRegister(email, password);
+          }}
+        />
+      </SafeAreaView>
     );
   }
 
@@ -67,6 +94,7 @@ function AppContainer() {
           language={vm.language}
           themeMode={vm.themeMode}
           userName={vm.userName}
+          accountEmail={vm.firebaseUser?.email ?? null}
           onBack={() => vm.setScreen({ name: 'home' })}
           onSelectLanguage={(nextLanguage) => {
             void vm.handleLanguageChange(nextLanguage);
@@ -76,6 +104,9 @@ function AppContainer() {
           }}
           onChangeUserName={(value) => {
             void vm.handleUserNameChange(value);
+          }}
+          onSignOut={() => {
+            void vm.handleSignOut();
           }}
           notificationsSupported={vm.notificationsSupported}
           remindersEnabled={vm.remindersEnabled}

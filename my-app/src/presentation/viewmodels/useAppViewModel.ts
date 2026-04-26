@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { createUserWithEmailAndPassword, onAuthStateChanged, signInWithEmailAndPassword, signOut, type User } from 'firebase/auth';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 
+import { getFirebase } from '../../config/firebase';
 import { exerciseRepository } from '../../data/repositories/exerciseRepository';
 import { quoteRepository } from '../../data/repositories/quoteRepository';
 import { subscribeOnlineStatus } from '../../data/network/networkService';
@@ -65,6 +67,11 @@ export function useAppViewModel() {
   const [themeMode, setThemeMode] = useState<ThemeMode>('light');
   const [userName, setUserName] = useState('User');
   const [isSplashVisible, setSplashVisible] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
+  const [firebaseUser, setFirebaseUser] = useState<User | null>(null);
+  const [authSubmitting, setAuthSubmitting] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const splashStartRef = useRef(Date.now());
   const [screen, setScreen] = useState<Screen>({ name: 'home' });
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [isModalVisible, setModalVisible] = useState(false);
@@ -94,8 +101,8 @@ export function useAppViewModel() {
       ? workouts.find((workout) => workout.id === screen.workoutId) ?? null
       : null;
 
-  async function refreshWorkouts() {
-    const rows = await getWorkouts();
+  async function refreshWorkouts(userId: string) {
+    const rows = await getWorkouts(userId);
     setWorkouts(rows);
   }
 
@@ -126,6 +133,10 @@ export function useAppViewModel() {
   }
 
   async function submitForm() {
+    const uid = firebaseUser?.uid;
+    if (!uid) {
+      return;
+    }
     if (!form.title.trim() || !form.description.trim()) {
       return;
     }
@@ -149,8 +160,8 @@ export function useAppViewModel() {
     };
 
     if (editingWorkoutId === null) {
-      const created = await createWorkout(data);
-      void saveWorkoutRemote({
+      const created = await createWorkout(data, uid);
+      void saveWorkoutRemote(uid, {
         id: created.id,
         title: data.title,
         description: data.description,
@@ -160,9 +171,9 @@ export function useAppViewModel() {
         image_url: data.image_url,
       });
     } else {
-      await updateWorkout(editingWorkoutId, data);
+      await updateWorkout(editingWorkoutId, data, uid);
       const prev = workouts.find((w) => w.id === editingWorkoutId);
-      void saveWorkoutRemote({
+      void saveWorkoutRemote(uid, {
         id: editingWorkoutId,
         title: data.title,
         description: data.description,
@@ -173,17 +184,21 @@ export function useAppViewModel() {
       });
     }
 
-    await refreshWorkouts();
+    await refreshWorkouts(uid);
     setModalVisible(false);
   }
 
   async function handleDelete(id: number) {
-    void deleteWorkoutRemote(id);
-    await removeWorkout(id);
+    const uid = firebaseUser?.uid;
+    if (!uid) {
+      return;
+    }
+    void deleteWorkoutRemote(uid, id);
+    await removeWorkout(id, uid);
     if (screen.name === 'details' && screen.workoutId === id) {
       setScreen({ name: 'home' });
     }
-    await refreshWorkouts();
+    await refreshWorkouts(uid);
   }
 
   async function handleThemeToggle(value: boolean) {
@@ -280,11 +295,25 @@ export function useAppViewModel() {
   }
 
   useEffect(() => {
+    if (!authReady) {
+      return;
+    }
+    const elapsed = Date.now() - splashStartRef.current;
+    const minSplashMs = 1200;
+    const waitMs = Math.max(0, minSplashMs - elapsed);
+    const id = setTimeout(() => {
+      setSplashVisible(false);
+    }, waitMs);
+    return () => {
+      clearTimeout(id);
+    };
+  }, [authReady]);
+
+  useEffect(() => {
     let isMounted = true;
+    let unsubAuth: (() => void) | undefined;
 
     async function bootstrap() {
-      const started = Date.now();
-
       try {
         await initDb();
         await initApiCacheDb();
@@ -309,30 +338,40 @@ export function useAppViewModel() {
           }
         }
 
-        const rows = await getWorkouts();
-        if (isMounted) {
-          setWorkouts(rows);
+        const fb = getFirebase();
+        if (fb) {
+          unsubAuth = onAuthStateChanged(fb.auth, (user) => {
+            if (!isMounted) {
+              return;
+            }
+            setFirebaseUser(user);
+            setAuthReady(true);
+            if (user) {
+              void getWorkouts(user.uid).then((rows) => {
+                if (isMounted) {
+                  setWorkouts(rows);
+                }
+              });
+            } else {
+              setWorkouts([]);
+            }
+          });
+        } else {
+          setAuthReady(true);
         }
 
         // Do not block app startup on network calls.
         void loadQuote();
         void loadCatalog(false, bootstrapLanguage);
-      } finally {
-        const elapsed = Date.now() - started;
-        const minSplashMs = 1200;
-        const waitMs = elapsed < minSplashMs ? minSplashMs - elapsed : 0;
-
-        setTimeout(() => {
-          if (isMounted) {
-            setSplashVisible(false);
-          }
-        }, waitMs);
+      } catch {
+        setAuthReady(true);
       }
     }
 
     void bootstrap();
     return () => {
       isMounted = false;
+      unsubAuth?.();
     };
   }, []);
 
@@ -365,6 +404,74 @@ export function useAppViewModel() {
         .filter((exercise) => exercise.label.trim().length > 0),
     [exerciseLabelResolver, form.exercises_csv]
   );
+
+  function authErrorMessage(e: unknown): string {
+    const code =
+      e && typeof e === 'object' && 'code' in e && typeof (e as { code: unknown }).code === 'string'
+        ? (e as { code: string }).code
+        : undefined;
+    if (
+      code === 'auth/invalid-credential' ||
+      code === 'auth/wrong-password' ||
+      code === 'auth/user-not-found'
+    ) {
+      return t.authErrorInvalid;
+    }
+    if (code === 'auth/email-already-in-use') {
+      return t.authErrorEmailInUse;
+    }
+    if (code === 'auth/weak-password') {
+      return t.authErrorWeakPassword;
+    }
+    if (code === 'auth/invalid-email') {
+      return t.authErrorInvalidEmail;
+    }
+    if (code) {
+      return `${t.authErrorGeneric} [${code}]`;
+    }
+    return t.authErrorGeneric;
+  }
+
+  async function handleAuthSignIn(email: string, password: string) {
+    const fb = getFirebase();
+    if (!fb) {
+      return;
+    }
+    setAuthError(null);
+    setAuthSubmitting(true);
+    try {
+      await signInWithEmailAndPassword(fb.auth, email.trim(), password);
+    } catch (e) {
+      setAuthError(authErrorMessage(e));
+    } finally {
+      setAuthSubmitting(false);
+    }
+  }
+
+  async function handleAuthRegister(email: string, password: string) {
+    const fb = getFirebase();
+    if (!fb) {
+      return;
+    }
+    setAuthError(null);
+    setAuthSubmitting(true);
+    try {
+      await createUserWithEmailAndPassword(fb.auth, email.trim(), password);
+    } catch (e) {
+      setAuthError(authErrorMessage(e));
+    } finally {
+      setAuthSubmitting(false);
+    }
+  }
+
+  async function handleSignOut() {
+    const fb = getFirebase();
+    if (!fb) {
+      return;
+    }
+    setScreen({ name: 'home' });
+    await signOut(fb.auth);
+  }
 
   return {
     language,
@@ -401,5 +508,12 @@ export function useAppViewModel() {
     remindersEnabled,
     handleRemindersToggle,
     handleTestReminder,
+    authReady,
+    firebaseUser,
+    authSubmitting,
+    authError,
+    handleAuthSignIn,
+    handleAuthRegister,
+    handleSignOut,
   };
 }

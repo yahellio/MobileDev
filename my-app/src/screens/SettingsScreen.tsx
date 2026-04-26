@@ -10,12 +10,14 @@ type SettingsScreenProps = {
   language: Language;
   themeMode: ThemeMode;
   userName: string;
+  accountEmail: string | null;
   notificationsSupported: boolean;
   remindersEnabled: boolean;
   onBack: () => void;
   onSelectLanguage: (language: Language) => void;
   onToggleTheme: (isDark: boolean) => void;
   onChangeUserName: (value: string) => void;
+  onSignOut: () => void;
   onRemindersToggle: (enabled: boolean) => void;
   onTestReminder: () => void;
 };
@@ -26,12 +28,14 @@ export function SettingsScreen({
   language,
   themeMode,
   userName,
+  accountEmail,
   notificationsSupported,
   remindersEnabled,
   onBack,
   onSelectLanguage,
   onToggleTheme,
   onChangeUserName,
+  onSignOut,
   onRemindersToggle,
   onTestReminder,
 }: SettingsScreenProps) {
@@ -123,6 +127,13 @@ export function SettingsScreen({
       </View>
 
       <View style={styles.settingsBlock}>
+        {accountEmail ? (
+          <View style={styles.settingColumn}>
+            <Text style={styles.inputLabel}>{t.accountEmail}</Text>
+            <Text style={{ color: colors.text, fontSize: 15 }}>{accountEmail}</Text>
+          </View>
+        ) : null}
+
         <Text style={styles.inputLabel}>{t.userName}</Text>
         <TextInput
           value={userName}
@@ -189,6 +200,10 @@ export function SettingsScreen({
         ) : (
           <Text style={styles.hintMuted}>{t.remindersWebUnavailable}</Text>
         )}
+
+        <Pressable style={styles.textButton} onPress={onSignOut}>
+          <Text style={styles.textButtonLabel}>{t.authSignOut}</Text>
+        </Pressable>
       </View>
     </>
   );

@@ -1,5 +1,8 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
+import { getAuth, getReactNativePersistence, initializeAuth, type Auth } from 'firebase/auth';
 import { getFirestore, type Firestore } from 'firebase/firestore';
+import { Platform } from 'react-native';
 
 const firebaseConfig = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
@@ -10,9 +13,9 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-let cached: { db: Firestore } | null | undefined;
+let cached: { db: Firestore; auth: Auth } | null | undefined;
 
-export function getFirebase(): { db: Firestore } | null {
+export function getFirebase(): { db: Firestore; auth: Auth } | null {
   if (cached !== undefined) {
     return cached;
   }
@@ -21,6 +24,23 @@ export function getFirebase(): { db: Firestore } | null {
     return null;
   }
   const app: FirebaseApp = getApps().length ? getApps()[0]! : initializeApp(firebaseConfig);
-  cached = { db: getFirestore(app) };
+  let auth: Auth;
+  if (Platform.OS === 'web') {
+    auth = getAuth(app);
+  } else {
+    try {
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
+    } catch (e) {
+      const code = (e as { code?: string })?.code;
+      if (code === 'auth/already-initialized') {
+        auth = getAuth(app);
+      } else {
+        throw e;
+      }
+    }
+  }
+  cached = { db: getFirestore(app), auth };
   return cached;
 }

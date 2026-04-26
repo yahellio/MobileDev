@@ -58,24 +58,24 @@ export type WorkoutRemotePayload = {
   image_url: string;
 };
 
-export async function saveWorkoutRemote(row: WorkoutRemotePayload): Promise<void> {
+export async function saveWorkoutRemote(uid: string, row: WorkoutRemotePayload): Promise<void> {
   const fb = getFirebase();
   if (!fb) {
     return;
   }
-  await setDoc(doc(fb.db, 'workouts', String(row.id)), {
+  await setDoc(doc(fb.db, 'users', uid, 'workouts', String(row.id)), {
     ...row,
     syncedAt: new Date().toISOString(),
   });
 }
 
-export async function deleteWorkoutRemote(id: number): Promise<void> {
+export async function deleteWorkoutRemote(uid: string, id: number): Promise<void> {
   const fb = getFirebase();
   if (!fb) {
     return;
   }
   try {
-    await deleteDoc(doc(fb.db, 'workouts', String(id)));
+    await deleteDoc(doc(fb.db, 'users', uid, 'workouts', String(id)));
   } catch {
     // документ мог не существовать
   }
