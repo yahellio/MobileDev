@@ -6,8 +6,9 @@ import {
   updateProfile,
   type User,
 } from 'firebase/auth';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert } from 'react-native';
+import { Accelerometer } from 'expo-sensors';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Platform } from 'react-native';
 
 import { getFirebase } from '../../config/firebase';
 import { exerciseRepository } from '../../data/repositories/exerciseRepository';
@@ -312,7 +313,7 @@ export function useAppViewModel() {
     await saveUserName(value);
   }
 
-  async function loadQuote() {
+  const loadQuote = useCallback(async () => {
     try {
       const data = await getRandomQuoteUseCase(quoteRepository);
       setQuote({ text: data.text, author: data.author });
@@ -320,7 +321,7 @@ export function useAppViewModel() {
     } catch {
       setQuoteError(true);
     }
-  }
+  }, []);
 
   async function loadCatalog(fromRefresh = false, targetLanguage: Language = language) {
     setCatalogLoading(true);
@@ -364,6 +365,62 @@ export function useAppViewModel() {
     });
     return unsub;
   }, [firebaseUser?.uid]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || !firebaseUser || screen.name !== 'home') {
+      return;
+    }
+    const SHAKE_COOLDOWN_MS = 1500;
+    const DELTA_G_THRESHOLD = 1.1;
+
+    let lastShakeAt = 0;
+    let sub: { remove: () => void } | null = null;
+    let prevX = 0;
+    let prevY = 0;
+    let prevZ = 0;
+    let havePrev = false;
+    let cancelled = false;
+
+    (async () => {
+      if (!(await Accelerometer.isAvailableAsync())) {
+        return;
+      }
+      if (cancelled) {
+        return;
+      }
+      Accelerometer.setUpdateInterval(150);
+      sub = Accelerometer.addListener(({ x, y, z }) => {
+        if (!havePrev) {
+          prevX = x;
+          prevY = y;
+          prevZ = z;
+          havePrev = true;
+          return;
+        }
+        const dx = x - prevX;
+        const dy = y - prevY;
+        const dz = z - prevZ;
+        prevX = x;
+        prevY = y;
+        prevZ = z;
+        const delta = Math.hypot(dx, dy, dz);
+        if (delta < DELTA_G_THRESHOLD) {
+          return;
+        }
+        const now = Date.now();
+        if (now - lastShakeAt < SHAKE_COOLDOWN_MS) {
+          return;
+        }
+        lastShakeAt = now;
+        void loadQuote();
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      sub?.remove();
+    };
+  }, [screen.name, firebaseUser, loadQuote]);
 
   useEffect(() => {
     let isMounted = true;

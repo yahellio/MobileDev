@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { TranslationDictionary } from '../i18n/translations';
 import type { ThemeColors } from '../theme/palette';
@@ -132,6 +132,11 @@ export function HomeScreen({
     quoteMeta: {
       color: colors.secondaryText,
       fontSize: 12,
+    },
+    quoteShakeHint: {
+      color: colors.secondaryText,
+      fontSize: 11,
+      marginTop: 8,
     },
     searchInput: {
       marginHorizontal: 16,
@@ -285,6 +290,7 @@ export function HomeScreen({
             </>
           )}
           {quoteError && <Text style={styles.quoteMeta}>{t.quoteUnavailable}</Text>}
+          {Platform.OS !== 'web' ? <Text style={styles.quoteShakeHint}>{t.quoteShakeHint}</Text> : null}
         </View>
 
         {workouts.length > 0 && (
